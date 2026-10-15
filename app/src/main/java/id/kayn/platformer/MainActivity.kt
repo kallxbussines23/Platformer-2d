@@ -93,9 +93,8 @@ private class GameView(context: android.content.Context) : View(context) {
                 if (pl.kind == "fragile") brokenAt.putIfAbsent(i, time)
             }
         }
-        brokenAt.entries.toList().forEach { (i, at) -> if (time - at > 0.95f) brokenAt[i] = -time }
-        // Negative timestamp means the platform has completed its crumble and is gone.
-        brokenAt.entries.removeAll { it.value < 0f }
+        brokenAt.entries.toList().forEach { (i, at) -> if (at >= 0f && time - at > 0.95f) brokenAt[i] = -1f }
+        // A negative timestamp marks a platform that has crumbled permanently.
         if (px < 0f) { px = 0f; vx = 0f }
         if (py > h + 100f) { loseLife() }
         if (px > 2490f) won = true
