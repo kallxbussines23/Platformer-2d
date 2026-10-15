@@ -30,18 +30,35 @@ private class GameView(context: android.content.Context) : View(context) {
     private var grounded = false; private var onIce = false
     private var left = false; private var right = false; private var jumpQueued = false
     private var coins = 0; private var lives = 3; private var gameOver = false; private var won = false
+    private var levelSelect = true
+    private var selectedLevel = 1
+    private var jumpHeld = false
+    private val activePointers = mutableMapOf<Int, Pair<Float, Float>>()
     private var time = 0f; private var previous = System.nanoTime()
     private val collected = mutableSetOf<Int>()
     private val brokenAt = mutableMapOf<Int, Float>()
-    private val coinXs = listOf(330f, 620f, 920f, 1240f, 1540f, 1880f, 2210f)
-    private val enemies = listOf(540f, 1120f, 1700f, 2050f)
-    private val ground = listOf(0f to 420f, 475f to 760f, 815f to 1080f, 1160f to 1435f, 1500f to 1790f, 1850f to 2160f, 2220f to 2600f)
-    private val platforms = listOf(
-        Platform(275f, 115f, 125f, "grass"), Platform(680f, 165f, 135f, "wood"),
-        Platform(980f, 125f, 150f, "ice"), Platform(1370f, 180f, 145f, "fragile"),
-        Platform(1640f, 125f, 155f, "stone"), Platform(1980f, 180f, 150f, "ice"),
-        Platform(2200f, 100f, 130f, "fragile")
-    )
+    private val coinXs: List<Float> get() = listOf(320f, 620f, 920f, 1240f, 1540f, 1880f, 2210f).map { it + (selectedLevel-1)*5f }
+    private val enemies: List<Float> get() = when(selectedLevel) {
+        1 -> listOf(540f,1120f,1700f,2050f)
+        2 -> listOf(500f,900f,1300f,1740f,2140f)
+        3 -> listOf(470f,800f,1200f,1580f,1990f,2320f)
+        4 -> listOf(520f,920f,1390f,1780f,2200f)
+        else -> listOf(480f,790f,1100f,1450f,1770f,2110f,2390f)
+    }
+    private val ground: List<Pair<Float,Float>> get() = when(selectedLevel) {
+        1 -> listOf(0f to 420f,475f to 760f,815f to 1080f,1160f to 1435f,1500f to 1790f,1850f to 2160f,2220f to 2600f)
+        2 -> listOf(0f to 360f,420f to 680f,750f to 1000f,1070f to 1320f,1390f to 1660f,1730f to 1990f,2060f to 2600f)
+        3 -> listOf(0f to 390f,455f to 650f,720f to 930f,1000f to 1210f,1280f to 1500f,1570f to 1790f,1860f to 2090f,2160f to 2600f)
+        4 -> listOf(0f to 350f,420f to 630f,700f to 900f,970f to 1170f,1240f to 1450f,1520f to 1730f,1800f to 2010f,2080f to 2600f)
+        else -> listOf(0f to 340f,405f to 590f,655f to 850f,915f to 1110f,1175f to 1370f,1435f to 1630f,1695f to 1890f,1955f to 2150f,2215f to 2600f)
+    }
+    private val platforms: List<Platform> get() = when(selectedLevel) {
+        1 -> listOf(Platform(275f,115f,125f,"grass"),Platform(680f,165f,135f,"wood"),Platform(980f,125f,150f,"ice"),Platform(1370f,180f,145f,"fragile"),Platform(1640f,125f,155f,"stone"),Platform(1980f,180f,150f,"ice"),Platform(2200f,100f,130f,"fragile"))
+        2 -> listOf(Platform(230f,120f,130f,"wood"),Platform(540f,180f,135f,"fragile"),Platform(820f,140f,150f,"ice"),Platform(1120f,195f,140f,"wood"),Platform(1460f,130f,150f,"ice"),Platform(1770f,190f,145f,"fragile"),Platform(2110f,140f,150f,"stone"))
+        3 -> listOf(Platform(260f,150f,130f,"stone"),Platform(570f,210f,130f,"fragile"),Platform(860f,145f,145f,"ice"),Platform(1140f,220f,130f,"fragile"),Platform(1450f,155f,145f,"wood"),Platform(1750f,215f,135f,"ice"),Platform(2070f,145f,150f,"stone"),Platform(2350f,195f,130f,"fragile"))
+        4 -> listOf(Platform(230f,140f,135f,"ice"),Platform(500f,205f,130f,"fragile"),Platform(790f,155f,145f,"ice"),Platform(1090f,215f,130f,"fragile"),Platform(1390f,145f,140f,"wood"),Platform(1690f,220f,135f,"ice"),Platform(1990f,155f,150f,"fragile"),Platform(2280f,200f,130f,"stone"))
+        else -> listOf(Platform(220f,160f,125f,"fragile"),Platform(480f,220f,130f,"ice"),Platform(760f,175f,130f,"fragile"),Platform(1040f,230f,130f,"ice"),Platform(1330f,170f,135f,"fragile"),Platform(1620f,230f,130f,"ice"),Platform(1910f,175f,140f,"fragile"),Platform(2210f,220f,140f,"stone"),Platform(2440f,160f,120f,"wood"))
+    }
 
     override fun onDraw(c: Canvas) {
         super.onDraw(c)
@@ -50,6 +67,7 @@ private class GameView(context: android.content.Context) : View(context) {
         previous = now; time += dt
         val w = width.toFloat(); val h = height.toFloat()
         floor = h * 0.80f
+        if (levelSelect) { drawLevelSelect(c,w,h); postInvalidateOnAnimation(); return }
         if (py == 0f) py = floor - 54f
         drawBackground(c, w, h)
         if (!gameOver && !won) updatePhysics(dt, h)
@@ -69,7 +87,7 @@ private class GameView(context: android.content.Context) : View(context) {
         if (right) vx += (if (onIce) 650f else 1800f) * dt
         if (!left && !right) vx *= if (onIce) 0.985f else 0.78f
         vx = vx.coerceIn(-280f, 280f)
-        if (jumpQueued && grounded) { vy = -590f; grounded = false; onIce = false }
+        if ((jumpQueued || (jumpHeld && grounded)) && grounded) { vy = -590f; grounded = false; onIce = false }
         jumpQueued = false
         val oldBottom = py + 54f
         val oldX = px
@@ -108,7 +126,7 @@ private class GameView(context: android.content.Context) : View(context) {
     }
 
     private fun drawBackground(c: Canvas, w: Float, h: Float) {
-        c.drawColor(Color.rgb(116, 194, 235))
+        c.drawColor(when(selectedLevel){2->Color.rgb(173,170,226);3->Color.rgb(106,179,218);4->Color.rgb(79,105,139);5->Color.rgb(58,61,103);else->Color.rgb(116,194,235)})
         // Cloud bands and distant mountains move at different rates.
         p.color = Color.rgb(196, 230, 247)
         for (i in -1..7) {
@@ -121,7 +139,7 @@ private class GameView(context: android.content.Context) : View(context) {
             val path = android.graphics.Path().apply { moveTo(x, floor); lineTo(x + 120f, h * .25f); lineTo(x + 245f, floor); close() }
             c.drawPath(path, p)
         }
-        p.color = Color.rgb(67, 144, 126)
+        p.color = when(selectedLevel){2->Color.rgb(101,151,104);3->Color.rgb(61,111,124);4->Color.rgb(74,101,116);5->Color.rgb(79,75,115);else->Color.rgb(67,144,126)}
         for (i in -1..8) {
             val x = i * 250f - camera * .43f % 250f
             c.drawCircle(x + 80f, floor - 15f, 90f, p); c.drawCircle(x + 185f, floor - 8f, 105f, p)
@@ -296,9 +314,9 @@ private class GameView(context: android.content.Context) : View(context) {
     }
 
     private fun drawHud(c: Canvas, w: Float, h: Float) {
-        p.color = Color.argb(220, 25, 37, 54); c.drawRoundRect(16f, 14f, 220f, 60f, 16f, 16f, p)
-        p.color = Color.WHITE; p.typeface = Typeface.DEFAULT_BOLD; p.textSize = 21f
-        c.drawText("♥ $lives     ◉ $coins", 31f, 44f, p)
+        p.color = Color.argb(220, 25, 37, 54); c.drawRoundRect(16f, 14f, 300f, 60f, 16f, 16f, p)
+        p.color = Color.WHITE; p.typeface = Typeface.DEFAULT_BOLD; p.textSize = 19f
+        c.drawText("LEVEL $selectedLevel/5   ♥ $lives   ◉ $coins", 27f, 43f, p)
         if (onIce) {
             p.color = Color.argb(210, 33, 110, 156); c.drawRoundRect(w * .40f, 16f, w * .60f, 48f, 14f, 14f, p)
             p.color = Color.WHITE; p.textSize = 15f; c.drawText("SLIPPERY!", w * .40f + 13f, 37f, p)
@@ -319,29 +337,72 @@ private class GameView(context: android.content.Context) : View(context) {
     private fun drawEndScreen(c: Canvas, w: Float, h: Float) {
         p.color = Color.argb(220, 13, 23, 36); c.drawRect(0f, 0f, w, h, p)
         p.color = Color.WHITE; p.textSize = 39f; p.typeface = Typeface.DEFAULT_BOLD
-        val title = if (won) "LEVEL CLEAR!" else "GAME OVER"
+        val title = if (won) (if(selectedLevel==5) "ALL LEVELS CLEAR!" else "LEVEL $selectedLevel CLEAR!") else "GAME OVER"
         c.drawText(title, w / 2f - p.measureText(title) / 2f, h / 2f - 5f, p)
-        p.textSize = 19f; val sub = "Tap untuk main lagi"
+        p.textSize = 19f; val sub = if(won && selectedLevel<5) "Tap untuk Level ${selectedLevel+1}" else if(won) "Tap untuk pilih level" else "Tap untuk coba lagi"
         c.drawText(sub, w / 2f - p.measureText(sub) / 2f, h / 2f + 32f, p)
     }
 
-    private fun restart() {
-        px = 90f; py = floor - 54f; vx = 0f; vy = 0f; camera = 0f
-        coins = 0; lives = 3; collected.clear(); brokenAt.clear()
-        gameOver = false; won = false; grounded = false; onIce = false
+    private fun beginLevel(level: Int) {
+        selectedLevel=level.coerceIn(1,5); levelSelect=false
+        px=90f; py=0f; vx=0f; vy=0f; camera=0f; coins=0; lives=3
+        collected.clear(); brokenAt.clear(); gameOver=false; won=false; grounded=false; onIce=false
+        left=false; right=false; jumpHeld=false; jumpQueued=false; activePointers.clear()
+    }
+    private fun restart() = beginLevel(selectedLevel)
+
+    private fun drawLevelSelect(c: Canvas, w: Float, h: Float) {
+        c.drawColor(Color.rgb(17,25,40))
+        p.color=Color.rgb(34,49,69); c.drawRoundRect(18f,18f,w-18f,h-18f,24f,24f,p)
+        p.color=Color.WHITE; p.typeface=Typeface.DEFAULT_BOLD; p.textSize=min(34f,w*.055f)
+        val title="PLATFORMER 2D"; c.drawText(title,w/2f-p.measureText(title)/2f,h*.20f,p)
+        p.textSize=min(17f,w*.027f); p.typeface=Typeface.DEFAULT
+        val subtitle="PILIH LEVEL  •  5 LEVEL PERTAMA"
+        c.drawText(subtitle,w/2f-p.measureText(subtitle)/2f,h*.29f,p)
+        val names=listOf("Green Hills","Woodland","Frozen Peaks","Dark Ruins","Final Boss")
+        val info=listOf("Pemanasan","Kayu rapuh","Es licin","Lebih sulit","Tantangan akhir")
+        val gap=12f; val cw=min(190f,(w-64f-gap*4)/5f); val ch=h*.34f; val total=cw*5f+gap*4f; val start=(w-total)/2f
+        for(i in 0..4){
+            val x=start+i*(cw+gap); val top=h*.37f
+            p.color=if(selectedLevel==i+1) Color.rgb(69,142,108) else Color.rgb(47,64,86)
+            c.drawRoundRect(x,top,x+cw,top+ch,15f,15f,p)
+            p.color=Color.WHITE; p.typeface=Typeface.DEFAULT_BOLD; p.textSize=min(23f,cw*.20f); c.drawText("${i+1}",x+14f,top+32f,p)
+            p.textSize=min(15f,cw*.13f); c.drawText(names[i],x+12f,top+ch*.48f,p)
+            p.typeface=Typeface.DEFAULT; p.textSize=min(12f,cw*.105f); c.drawText(info[i],x+12f,top+ch*.68f,p)
+            p.color=when(i){0->Color.rgb(82,175,83);1->Color.rgb(164,111,65);2->Color.rgb(111,205,240);3->Color.rgb(105,117,158);else->Color.rgb(153,87,204)}
+            c.drawRoundRect(x+12f,top+ch-27f,x+cw-12f,top+ch-14f,6f,6f,p)
+        }
+        p.color=Color.rgb(208,222,235); p.textSize=min(16f,w*.025f)
+        val hint="Sentuh kartu level untuk mulai"; c.drawText(hint,w/2f-p.measureText(hint)/2f,h*.84f,p)
     }
 
     override fun onTouchEvent(e: MotionEvent): Boolean {
-        val w = width.toFloat(); val h = height.toFloat()
-        if ((gameOver || won) && e.action == MotionEvent.ACTION_DOWN) { restart(); return true }
-        when (e.action) {
-            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
-                left = e.x < 104f && e.y > h - 112f
-                right = e.x in 104f..205f && e.y > h - 112f
-                if (e.x > w - 145f && e.y > h - 125f) jumpQueued = true
+        val w=width.toFloat(); val h=height.toFloat()
+        if(levelSelect && e.actionMasked==MotionEvent.ACTION_DOWN){
+            val gap=12f; val cw=min(190f,(w-64f-gap*4)/5f); val total=cw*5f+gap*4f; val start=(w-total)/2f
+            if(e.y in (h*.34f)..(h*.78f)){
+                val idx=((e.x-start)/(cw+gap)).toInt()
+                if(idx in 0..4 && e.x>=start+idx*(cw+gap) && e.x<=start+idx*(cw+gap)+cw) beginLevel(idx+1)
             }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { left = false; right = false }
+            return true
         }
+        if((gameOver||won)&&e.actionMasked==MotionEvent.ACTION_DOWN){
+            if(won&&selectedLevel<5) beginLevel(selectedLevel+1) else { levelSelect=true; activePointers.clear() }
+            return true
+        }
+        when(e.actionMasked){
+            MotionEvent.ACTION_DOWN,MotionEvent.ACTION_POINTER_DOWN -> {
+                val i=e.actionIndex; activePointers[e.getPointerId(i)]=Pair(e.getX(i),e.getY(i))
+                if(e.getX(i)>w-145f&&e.getY(i)>h-125f){jumpQueued=true;jumpHeld=true}
+            }
+            MotionEvent.ACTION_MOVE -> for(i in 0 until e.pointerCount) activePointers[e.getPointerId(i)]=Pair(e.getX(i),e.getY(i))
+            MotionEvent.ACTION_UP,MotionEvent.ACTION_POINTER_UP -> activePointers.remove(e.getPointerId(e.actionIndex))
+            MotionEvent.ACTION_CANCEL -> activePointers.clear()
+        }
+        left=activePointers.values.any{it.first<104f&&it.second>h-112f}
+        right=activePointers.values.any{it.first in 104f..205f&&it.second>h-112f}
+        jumpHeld=activePointers.values.any{it.first>w-145f&&it.second>h-125f}
+        if(!jumpHeld) jumpQueued=false
         return true
     }
 }
