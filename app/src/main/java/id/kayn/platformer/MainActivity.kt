@@ -321,17 +321,20 @@ private class GameView(context: android.content.Context) : View(context) {
             p.color = Color.argb(210, 33, 110, 156); c.drawRoundRect(w * .40f, 16f, w * .60f, 48f, 14f, 14f, p)
             p.color = Color.WHITE; p.textSize = 15f; c.drawText("SLIPPERY!", w * .40f + 13f, 37f, p)
         }
-        drawButton(c, 24f, h - 88f, 100f, h - 18f, "◀")
-        drawButton(c, 108f, h - 88f, 184f, h - 18f, "▶")
-        drawButton(c, w - 126f, h - 100f, w - 22f, h - 18f, "JUMP")
+        // Large touch targets sized for phones; movement controls stay separate from jump.
+        val controlBottom = h - 18f
+        val controlTop = h - 132f
+        drawButton(c, 22f, controlTop, 142f, controlBottom, "◀")
+        drawButton(c, 151f, controlTop, 271f, controlBottom, "▶")
+        drawButton(c, w - 174f, h - 146f, w - 22f, controlBottom, "JUMP")
     }
 
     private fun drawButton(c: Canvas, l: Float, t: Float, r: Float, b: Float, text: String) {
-        p.color = Color.argb(175, 26, 37, 52); c.drawRoundRect(l, t, r, b, 18f, 18f, p)
-        p.color = Color.rgb(214, 226, 236); p.style = Paint.Style.STROKE; p.strokeWidth = 2f
-        c.drawRoundRect(l, t, r, b, 18f, 18f, p); p.style = Paint.Style.FILL
-        p.color = Color.WHITE; p.textSize = if (text == "JUMP") 16f else 29f; p.typeface = Typeface.DEFAULT_BOLD
-        c.drawText(text, (l + r) / 2f - p.measureText(text) / 2f, (t + b) / 2f + 10f, p)
+        p.color = Color.argb(215, 19, 29, 43); c.drawRoundRect(l, t, r, b, 24f, 24f, p)
+        p.color = Color.rgb(100, 190, 125); p.style = Paint.Style.STROKE; p.strokeWidth = 4f
+        c.drawRoundRect(l, t, r, b, 24f, 24f, p); p.style = Paint.Style.FILL
+        p.color = Color.WHITE; p.textSize = if (text == "JUMP") 24f else 45f; p.typeface = Typeface.DEFAULT_BOLD
+        c.drawText(text, (l + r) / 2f - p.measureText(text) / 2f, (t + b) / 2f + p.textSize * .34f, p)
     }
 
     private fun drawEndScreen(c: Canvas, w: Float, h: Float) {
@@ -393,15 +396,15 @@ private class GameView(context: android.content.Context) : View(context) {
         when(e.actionMasked){
             MotionEvent.ACTION_DOWN,MotionEvent.ACTION_POINTER_DOWN -> {
                 val i=e.actionIndex; activePointers[e.getPointerId(i)]=Pair(e.getX(i),e.getY(i))
-                if(e.getX(i)>w-145f&&e.getY(i)>h-125f){jumpQueued=true;jumpHeld=true}
+                if(e.getX(i)>w-184f&&e.getY(i)>h-160f){jumpQueued=true;jumpHeld=true}
             }
             MotionEvent.ACTION_MOVE -> for(i in 0 until e.pointerCount) activePointers[e.getPointerId(i)]=Pair(e.getX(i),e.getY(i))
             MotionEvent.ACTION_UP,MotionEvent.ACTION_POINTER_UP -> activePointers.remove(e.getPointerId(e.actionIndex))
             MotionEvent.ACTION_CANCEL -> activePointers.clear()
         }
-        left=activePointers.values.any{it.first<104f&&it.second>h-112f}
-        right=activePointers.values.any{it.first in 104f..205f&&it.second>h-112f}
-        jumpHeld=activePointers.values.any{it.first>w-145f&&it.second>h-125f}
+        left=activePointers.values.any{it.first in 0f..148f && it.second>h-150f}
+        right=activePointers.values.any{it.first in 149f..280f && it.second>h-150f}
+        jumpHeld=activePointers.values.any{it.first>w-184f&&it.second>h-160f}
         if(!jumpHeld) jumpQueued=false
         return true
     }
