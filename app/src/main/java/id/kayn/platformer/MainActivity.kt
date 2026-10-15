@@ -13,10 +13,10 @@ import kotlin.math.max
 import kotlin.math.min
 
 class MainActivity : Activity() {
-    override fun onCreate(savedInstanceState: Bundle?) { super.onCreate(savedInstanceState); window.decorView.systemUiVisibility = 5894 or 1024 or 512; setContentView(GameView()) }
+    override fun onCreate(savedInstanceState: Bundle?) { super.onCreate(savedInstanceState); window.decorView.systemUiVisibility = 5894 or 1024 or 512; setContentView(GameView(this)) }
 }
 
-private class GameView : View(this@MainActivity) {
+private class GameView(context: android.content.Context) : View(context) {
     private val p = Paint(Paint.ANTI_ALIAS_FLAG)
     private var playerX = 100f
     private var playerY = 0f
@@ -74,7 +74,7 @@ private class GameView : View(this@MainActivity) {
         val w=width.toFloat();val h=height.toFloat()
         if(gameOver && e.action==MotionEvent.ACTION_DOWN){playerX=100f;playerY=h*0.8f-58f;vx=0f;vy=0f;lives=3;coins=0;collected.clear();gameOver=false;return true}
         when(e.action){MotionEvent.ACTION_DOWN,MotionEvent.ACTION_MOVE->{left=e.x<110f&&e.y>h-115f;right=e.x in 110f..215f&&e.y>h-115f;if(e.x>w-150f&&e.y>h-130f)jump=true}
-            MotionEvent.ACTION_UP,CANCEL->{left=false;right=false}}
+            MotionEvent.ACTION_UP,MotionEvent.ACTION_CANCEL->{left=false;right=false}}
         return true
     }
 }
