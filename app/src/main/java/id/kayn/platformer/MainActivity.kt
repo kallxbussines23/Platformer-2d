@@ -255,9 +255,7 @@ private class GameView(context: android.content.Context) : View(context) {
             if (i in collected) return@forEachIndexed
             val x = worldX - camera; val y = floor - 74f - if (i % 2 == 0) 28f else 0f
             val squash = .28f + abs(kotlin.math.sin(time * 3.5f + i)) * .72f
-            p.color = Color.rgb(199, 124, 17); c.drawOval(x - 12f * squash, y - 15f, x + 12f * squash, y + 15f, p)
-            p.color = Color.rgb(255, 202, 49); c.drawOval(x - 9f * squash, y - 12f, x + 9f * squash, y + 12f, p)
-            p.color = Color.rgb(255, 238, 139); c.drawCircle(x - 3f, y - 5f, 2.5f, p)
+            drawAsset(c, R.drawable.asset_coin, x - 16f * squash, y - 19f, x + 16f * squash, y + 19f)
             if (abs(px - worldX) < 28f && abs(py + 27f - y) < 45f) coinsCollected(i)
         }
     }
@@ -269,48 +267,35 @@ private class GameView(context: android.content.Context) : View(context) {
             if (x < -50f || x > width + 50f) return@forEachIndexed
             val bob = abs(kotlin.math.sin(time * 4.2f + i)) * 5f
             val squish = 1f + kotlin.math.sin(time * 5f + i) * .06f
-            p.color = Color.rgb(58, 130, 45)
-            c.drawOval(x - 23f * squish, floor - 43f + bob, x + 23f * squish, floor - 4f - bob * .25f, p)
-            p.color = Color.rgb(103, 213, 62)
-            c.drawOval(x - 18f * squish, floor - 40f + bob, x + 17f * squish, floor - 12f - bob * .25f, p)
-            p.color = Color.WHITE; c.drawCircle(x - 7f, floor - 29f + bob, 5f, p); c.drawCircle(x + 8f, floor - 29f + bob, 5f, p)
-            p.color = Color.rgb(28, 40, 27); c.drawCircle(x - 6f, floor - 28f + bob, 2.4f, p); c.drawCircle(x + 9f, floor - 28f + bob, 2.4f, p)
+            c.save()
+            c.scale(squish, 1f, x, floor - 23f + bob)
+            drawAsset(c, R.drawable.asset_slime, x - 30f, floor - 48f + bob, x + 30f, floor - 2f + bob)
+            c.restore()
             if (abs(px - ex) < 36f && py + 50f > floor - 43f && py < floor) {
                 if (vy > 90f) { vy = -350f } else { lives--; px = max(0f, px - 135f); vx = -vx * .5f; if (lives <= 0) gameOver = true }
             }
         }
     }
 
+    private fun drawAsset(c: Canvas, resourceId: Int, left: Float, top: Float, right: Float, bottom: Float) {
+        val drawable = context.getDrawable(resourceId) ?: return
+        drawable.setBounds(left.toInt(), top.toInt(), right.toInt(), bottom.toInt())
+        drawable.draw(c)
+    }
+
     private fun drawPlayer(c: Canvas) {
         val x = px - camera
         val running = abs(vx) > 25f && grounded
         val bob = if (grounded) kotlin.math.sin(time * if (running) 15f else 3f) * if (running) 3f else 1.5f else 0f
-        val leg = if (running) kotlin.math.sin(time * 15f) * 7f else 0f
+        val leg = if (running) kotlin.math.sin(time * 15f) * 2f else 0f
         val y = py + bob
-        // Shadow
-        p.color = Color.argb(55, 22, 34, 43); c.drawOval(x - 22f, floor - 5f, x + 22f, floor + 2f, p)
-        // Shoes and legs animate independently
-        p.color = Color.rgb(31, 33, 45)
-        c.drawRoundRect(x - 17f, y + 42f, x - 2f, y + 53f + leg.coerceAtLeast(0f), 4f, 4f, p)
-        c.drawRoundRect(x + 2f, y + 42f, x + 17f, y + 53f + (-leg).coerceAtLeast(0f), 4f, 4f, p)
-        p.color = Color.rgb(245, 240, 229)
-        c.drawRoundRect(x - 20f, y + 49f, x - 2f, y + 55f, 3f, 3f, p); c.drawRoundRect(x + 1f, y + 49f, x + 21f, y + 55f, 3f, 3f, p)
-        // Hoodie torso and hood
-        p.color = Color.rgb(41, 43, 60); c.drawRoundRect(x - 18f, y + 15f, x + 18f, y + 45f, 10f, 10f, p)
-        p.color = Color.rgb(81, 80, 105); c.drawRoundRect(x - 15f, y + 18f, x + 15f, y + 41f, 7f, 7f, p)
-        p.color = Color.rgb(244, 237, 223); c.drawRoundRect(x - 7f, y + 22f, x + 7f, y + 40f, 3f, 3f, p)
-        // Arms swing during running
-        p.color = Color.rgb(241, 188, 145)
-        c.drawRoundRect(x - 24f, y + 22f + leg * .25f, x - 15f, y + 37f + leg * .25f, 5f, 5f, p)
-        c.drawRoundRect(x + 15f, y + 22f - leg * .25f, x + 24f, y + 37f - leg * .25f, 5f, 5f, p)
-        // Face, hair fringe and eyes
-        p.color = Color.rgb(244, 194, 153); c.drawOval(x - 16f, y - 13f, x + 16f, y + 20f, p)
-        p.color = Color.rgb(55, 38, 37)
-        c.drawOval(x - 19f, y - 18f, x + 15f, y + 2f, p)
-        c.drawCircle(x - 11f, y - 6f, 7f, p); c.drawCircle(x + 2f, y - 12f, 8f, p)
-        p.color = Color.rgb(255, 255, 255); c.drawOval(x - 8f, y + 1f, x - 1f, y + 10f, p)
-        p.color = Color.rgb(31, 26, 27); c.drawCircle(x - 4f, y + 6f, 2.6f, p)
-        p.color = Color.rgb(211, 121, 103); c.drawLine(x + 3f, y + 15f, x + 8f, y + 15f, p)
+        p.color = Color.argb(55, 22, 34, 43)
+        c.drawOval(x - 23f, floor - 5f, x + 23f, floor + 2f, p)
+        c.save()
+        if (vx < -10f) { c.scale(-1f, 1f, x, y + 45f) }
+        c.translate(0f, abs(leg))
+        drawAsset(c, R.drawable.asset_player, x - 31f, y - 23f, x + 31f, y + 69f)
+        c.restore()
     }
 
     private fun drawHud(c: Canvas, w: Float, h: Float) {
